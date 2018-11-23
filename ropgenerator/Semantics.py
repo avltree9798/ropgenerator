@@ -169,6 +169,9 @@ class Semantics:
         """
         Make some adjustments in semantics so that it is easier to process by the search engine 
         """
+        def classicalOp(op):
+            return op in [Op.ADD, Op.SUB, Op.MUL, Op.DIV]
+        
         def adjustSemantic(spair):
             """
             returns a list of SPair
@@ -195,7 +198,7 @@ class Semantics:
                                                 ConstExpr((0x1<<(left.high+1))-right.value, left.args[0].size))), 
                                             Cond(CT.GE, left.args[0], ConstExpr(0, left.args[0].size)))
                                 new_cond.customSimplify()
-                                new_expr = OpExpr(Op.ADD,[left.args[0], ConstExpr(right.value,left.args[0].size)])
+                                new_expr = OpExpr(Op.ADD,[left.args[0], ConstExpr(right.value,left.args[0].size)]).simplify()
                                 return [SPair(new_expr, new_cond)]
                         
                         # Reg - cst... 
@@ -206,9 +209,18 @@ class Semantics:
                                                 ConstExpr(0x1<<(left.high+1),left.args[0].size ))), 
                                             Cond(CT.GE, left.args[0], ConstExpr(right.value, left.args[0].size)))
                                 new_cond.customSimplify()
-                                new_expr = OpExpr(Op.SUB,[left.args[0], ConstExpr(right.value,left.args[0].size)])
+                                new_expr = OpExpr(Op.SUB,[left.args[0], ConstExpr(right.value,left.args[0].size)]).simplify()
                                 return [SPair(new_expr, new_cond)]
-                        # Other cases ? :) 
+                        # Reg * cst 
+                        elif( lower.op == Op.MUL and (isinstance(left, Extract) and isinstance(left.args[0], SSAExpr) and left.low == 0)\
+                            and isinstance(right, ConstExpr)):
+                                new_cond = Cond(CT.AND, 
+                                            Cond(CT.AND, cond, Cond(CT.LT, left.args[0], \
+                                                ConstExpr((0x1<<(left.high+1))/right.value,left.args[0].size ))), 
+                                            Cond(CT.GE, left.args[0], ConstExpr(0, left.args[0].size)))
+                                new_cond.customSimplify()
+                                new_expr = OpExpr(Op.MUL,[left.args[0], ConstExpr(right.value,left.args[0].size)]).simplify()
+                                return [SPair(new_expr, new_cond)]
                         else:
                             pass
             return []

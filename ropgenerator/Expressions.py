@@ -158,6 +158,11 @@ class Expr:
             Returns (False, None)
             or (False, None, None) 
         """
+        
+    def isRegMul(self, reg_num):
+        """
+        Like is RegIncrement but for multiplication 
+        """
 
 class ConstExpr(Expr):
     """
@@ -212,7 +217,13 @@ class ConstExpr(Expr):
             return (False, None, None)
         else:
             return (False, None)
-        
+    
+    def isRegMul(self, reg_num ):
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
+    
     def toArray(self):
         res = [0 for x in range(0,Arch.ssaRegCount)]
         res.append(self.value)
@@ -294,6 +305,14 @@ class SSAExpr(Expr):
             return (True, self.reg.num, 0)
         elif( self.reg.num == reg_num ):
             return (True, 0)
+        else:
+            return (False, None)
+    
+    def isRegMul(self, reg_num ):
+        if( reg_num == -1 ):
+            return (True, self.reg.num, 1)
+        elif( self.reg.num == reg_num):
+            return (True, 1)
         else:
             return (False, None)
     
@@ -394,7 +413,13 @@ class MEMExpr(Expr):
             return (False, None, None)
         else:
             return (False, None)
-        
+    
+    def isRegMul(self, reg_num ):
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
+    
     def toArray(self):
         return []
       
@@ -439,6 +464,7 @@ class OpExpr(Expr):
         # For optimization
         self.regs = None
         self.simplifiedValue = None
+        
         
     def __str__(self):
         return "%s%d(%s)" % ( str(self.op), self.size, ','.join(str(a) for a in self.args))
@@ -603,9 +629,8 @@ class OpExpr(Expr):
                 elif( isinstance(right.args[1], ConstExpr)):
                     res = OpExpr(Op.SUB, [ConstExpr(left.value + right.args[1].value, left.size),\
                     right.args[0]]).simplify()
-            elif( isinstance( left, ConstExpr) and isinstance(right, ConstExpr) and\
-                left.value == right.value):
-                res = ConstExpr(0, left.size)
+            elif( isinstance( left, ConstExpr) and isinstance(right, ConstExpr)):
+                res = ConstExpr(left.value-right.value, left.size)
         
         elif( op == Op.MUL ):
             if( isinstance(left, ConstExpr) and left.value == 0 ):
@@ -616,6 +641,8 @@ class OpExpr(Expr):
                 res = left        
             elif( isinstance(right, ConstExpr) and right.value == 0 ):
 				res = ConstExpr(0, left.size)
+            elif( isinstance(left, OpExpr) and left.op == Op.MUL and isinstance(left.args[1], ConstExpr) and isinstance(right, ConstExpr)):
+                res = OpExpr(Op.MUL, [left.args[0], ConstExpr(left.args[1].value*right.value, right.size)])
         
         elif( op == Op.XOR ):
             if( isinstance(left, ConstExpr) and left.value == 0 ):
@@ -641,7 +668,12 @@ class OpExpr(Expr):
         elif( op == Op.BSH ):
             if( isinstance(left, OpExpr) and left.op == Op.BSH and isinstance(left.args[1], ConstExpr)):
                 if( isinstance(right, ConstExpr)):
-                    res = OpExpr(Op.BSH, [left.args[0], ConstExpr(left.args[1].value+right.value, right.size)])
+                    res = OpExpr(Op.BSH, [left.args[0], ConstExpr(left.args[1].value+right.value, right.size)]).simplify()
+            elif( isinstance(right, ConstExpr) and ( right.value < Arch.bits())):
+                if( right.value > 0):
+                    res = OpExpr(Op.MUL, [left, ConstExpr(0x1<<(right.value), right.size)]).simplify()
+                elif( right.value < 0):
+                    res = OpExpr(Op.DIV, [left, ConstExpr(0x1<<(-1*right.value), right.size)]).simplify()
         
         self.simplifiedValue = res
         return res
@@ -702,6 +734,41 @@ class OpExpr(Expr):
             else:
                 return (False, None, None)
         
+    def isRegMul(self, reg_num ):
+        left = self.args[0]
+        right = self.args[1]
+        if( self.op != Op.MUL ):
+            return (False, None, None) if ( reg_num == -1 ) else (False, None)
+        # Search for a particular register
+        if( reg_num != -1 ):           
+            if( isinstance(left, SSAExpr)):
+                if( isinstance( right, ConstExpr) and left.reg.num == reg_num):
+                    return (True, right.value)
+                else:
+                    return (False, None)
+            elif( isinstance(right, SSAExpr) and right.reg.num == reg_num):
+                if( isinstance( left, ConstExpr)):
+                    return (True, left.value)
+                else:
+                    return (False, None)
+            else:
+                return (False, None)
+        # Or search for any register increment 
+        else:           
+            if( isinstance(left, SSAExpr)):
+                if( isinstance( right, ConstExpr)):
+                    return (True, left.reg.num, right.value)
+                else:
+                    return (False, None, None)
+            elif( isinstance(right, SSAExpr)):
+                if( isinstance( left, ConstExpr)):
+                    return (True, right.reg.num, left.value)
+                else:
+                    return (False, None, None)
+            else:
+                return (False, None, None)
+
+    
     def toArray(self):
         if( self.op == Op.ADD ):
             left = self.args[0].toArray()
@@ -835,6 +902,12 @@ class Convert(Expr):
         else:
             return (False, None)
     
+    def isRegMul(self, reg_num ):
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
+    
     def toArray(self):
         return []
         
@@ -925,7 +998,7 @@ class Concat(Expr):
             
         newArgs = [a[0].simplify() for a in self.args]
         # SImplify expressions like
-        # concat(extract(reg,...), op(ADD/SUB, extract(reg,...), CST)
+        # concat(extract(reg,...), op(ADD/SUB, extract(reg,...), CST))
         # into op(ADD/SUB, reg, CST)
         # DEBUG TODO 
         #if( isinstance(newArgs[0], Extract) and isinstance(newArgs[0].args[0], ))
@@ -940,6 +1013,12 @@ class Concat(Expr):
         else:
             return (False, None)
         
+    def isRegMul(self, reg_num ):
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
+    
     def toArray(self):
         return []
         
@@ -1025,6 +1104,16 @@ class Extract(Expr):
                         res = simpExpr.args[0].args[0]
                     else:
                         res = simpExpr.args[0]
+        elif( isinstance( simpExpr, OpExpr) and simpExpr.op == Op.MUL ):
+            ## Same than above but with mul ;) 
+            if( isinstance( simpExpr.args[1], ConstExpr )):
+                mulVal = simpExpr.args[1].value 
+                if(  self.high == simpExpr.size -1 and (1<<self.low) == mulVal ):
+                    if( isinstance( simpExpr.args[0], Convert)):
+                        res = simpExpr.args[0].args[0]
+                    else:
+                        res = simpExpr.args[0]
+        
         elif( isinstance( simpExpr, MEMExpr ) and (self.low % 8 == 0)  and self.size != simpExpr.size ):
             # If we extract from the same address (from bit 0 )
             res = MEMExpr(OpExpr(Op.ADD, [simpExpr.addr, ConstExpr(self.low/8,simpExpr.addr.size)]).simplify(), self.size)
@@ -1047,6 +1136,12 @@ class Extract(Expr):
         else:
             return (False, None)
         
+    def isRegMul(self, reg_num ):
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
+    
     def toArray(self):
         return []
         
@@ -1128,6 +1223,12 @@ class ITE(Expr):
         else:
             return (False, None)
         
+    def isRegMul(self, reg_num ):
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
+    
     def toArray(self):
         return []
         

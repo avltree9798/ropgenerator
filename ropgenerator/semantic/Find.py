@@ -327,7 +327,10 @@ def parse_query(req):
         # otherwise REGtoREG
         else:
             (isInc, num, inc) = right_expr.isRegIncrement(-1)
-            return (True, QueryType.REGtoREG, Arch.regNameToNum[left], (num,inc))
+            if( isInc ):
+                return (True, QueryType.REGtoREG, Arch.regNameToNum[left], (num,inc))
+            (isMul, num, mul) = right_expr.isRegMul(-1)
+            return (True, QueryType.REGMULtoREG, Arch.regNameToNum[left], (num,mul))
     
     elif( left[:4] == 'mem(' ):
         (success,addr) = parseStrToExpr(left[4:-1], Arch.regNameToNum)
@@ -345,10 +348,12 @@ def parse_query(req):
             return (False, "\n\tError. Right expression '"+right+"' is not supported :(")
             
         (isInc, addr_reg, addr_cst) = addr.isRegIncrement(-1)
-        if( not isInc ):
+        if( isinstance(addr, ConstExpr) ):
             arg1 = addr.value
-        else:
+        elif( isInc):
             arg1 = (addr_reg, addr_cst)
+        else:
+            return (False, "\n\tError. Memory address '"+left+"' is not supported :(")
         # Test if CSTtoMEM
         if( isinstance(right_expr, ConstExpr)):
             return (True, QueryType.CSTtoMEM, arg1, right_expr.value)        
@@ -380,10 +385,12 @@ def is_supported_expr(expr):
     elif( isinstance(expr, MEMExpr)):
         return (not isinstance( expr.addr, MEMExpr)) and \
             (not isinstance(expr.addr, ConstExpr)) and \
+            (not (isinstance(expr.addr, OpExpr) and expr.addr.op == Op.MUL)) and \
             is_supported_expr(expr.addr)
     else:
         (isInc, reg, inc) = expr.isRegIncrement(-1)
-        return isInc
+        (isMul, reg, mul) = expr.isRegMul(-1)
+        return isInc or isMul
 
 
 ##########################

@@ -35,6 +35,9 @@ class CT(Enum):
     VALID_PTR_WRITE = "VALID_POINTER_WRITE"
     VALID_PTR_READ = "VALID_POINTER_READ"
     
+    def __str__(self):
+        return self.value
+    
     
 def invert(cond):
     """

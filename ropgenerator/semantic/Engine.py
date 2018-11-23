@@ -616,7 +616,7 @@ def _CSTtoMEM_write(arg1, cst, env, n=1):
     env.addCall(ID)
     ######################################
     res = []
-    res_fail
+    res_fail = FailRecord()
     addr_reg = arg1[0]
     addr_cst = arg1[1]
     # 1. First strategy (direct)

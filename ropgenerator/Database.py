@@ -34,6 +34,7 @@ class TimeOutException(Exception):
 class QueryType(Enum): 
     CSTtoREG = "Reg <- Cst"
     REGtoREG = "Reg <- Reg +/- Cst"
+    REGMULtoREG = "Reg <- Reg * CST"
     MEMtoREG = "Reg <- MEM(Reg +/- Cst)"
     CSTtoMEM = "MEM(Reg +/- Cst) <- Cst"
     REGtoMEM = "MEM(Reg +/- Cst) <- Reg +/- Cst"
@@ -220,6 +221,7 @@ class Database:
         self.types = dict()
         self.types[QueryType.CSTtoREG] = dict()
         self.types[QueryType.REGtoREG] = dict()
+        self.types[QueryType.REGMULtoREG] = dict()
         self.types[QueryType.MEMtoREG] = dict()
         self.types[QueryType.CSTtoMEM] = MEMDict()
         self.types[QueryType.REGtoMEM] = MEMDict()
@@ -231,6 +233,7 @@ class Database:
         for r in range(0, Arch.ssaRegCount):
             self.types[QueryType.CSTtoREG][r] = CSTList()
             self.types[QueryType.REGtoREG][r] = REGList()
+            self.types[QueryType.REGMULtoREG][r] = REGList()
             self.types[QueryType.MEMtoREG][r] = MEMList()
             
         # Fill them 
@@ -250,13 +253,19 @@ class Database:
                     # If not, skip this SSA register 
                     continue
                 for p in pairs:
-                    # For REGtoREG
+                    # For REGtoREG and REGMULtoREG
                     if( isinstance(p.expr, SSAExpr)):
                         self.types[QueryType.REGtoREG][reg.num].add(p.expr.reg.num, 0, i, p.cond)
                     elif( isinstance(p.expr, OpExpr)):
                         (isInc, num, inc ) = p.expr.isRegIncrement(-1)
                         if( isInc ):
                             self.types[QueryType.REGtoREG][reg.num].add(num, inc, i, p.cond)
+                            continue
+                        # else try for mul 
+                        (isMul, num, mul) = p.expr.isRegMul(-1)
+                        if( isMul ):
+                            self.types[QueryType.REGMULtoREG][reg.num].add(num, mul, i, p.cond)
+                            continue
                     # For CSTtoREG
                     elif( isinstance(p.expr, ConstExpr)):
                         self.types[QueryType.CSTtoREG][reg.num].add(p.expr.value, i, p.cond)
@@ -338,6 +347,9 @@ class Database:
                     arg2, constraint, assertion, enablePreConds, n, maxSpInc)
         elif( qtype == QueryType.REGtoREG ):
             return self.types[QueryType.REGtoREG][arg1].find(\
+                    arg2[0], arg2[1], constraint, assertion, enablePreConds, n, maxSpInc)
+        elif( qtype == QueryType.REGMULtoREG ):
+            return self.types[QueryType.REGMULtoREG][arg1].find(\
                     arg2[0], arg2[1], constraint, assertion, enablePreConds, n, maxSpInc)
         elif( qtype == QueryType.MEMtoREG ):
             return self.types[QueryType.MEMtoREG][arg1].find(\
