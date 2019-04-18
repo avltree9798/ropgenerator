@@ -22,7 +22,7 @@ DestArg::DestArg(DestType t, int addr_r, Binop o, cst_t addr_c): type(t),
 /* For both DST_REG and DST_CSTMEM because the program doesn't make the 
  * difference between cst_t and int so it always calls the DST_REG constructor
  * even for DST_CSTMEM :(. It's ugly, I know, fuck it. */ 
-DestArg::DestArg(DestType t, cst_t val, bool offset): type(t), addr_reg(-1), addr_cst_has_offset(offset){
+DestArg::DestArg(DestType t, cst_t val, bool offset, string cmt): type(t), addr_reg(-1), addr_cst_has_offset(offset), comment(cmt){
     if( t == DST_REG ){
         reg = val;
     }else if( t == DST_CSTMEM ){
@@ -48,7 +48,7 @@ bool DestArg::operator==(DestArg& other){
 }
 
 AssignArg::AssignArg():type(ASSIGN_INVALID), addr_reg(-1), reg(-1){} /* DEFAULT ONE */
-AssignArg::AssignArg(AssignType t, cst_t c, bool offset):type(t), addr_reg(-1), reg(-1), cst(c), cst_has_offset(offset){} /* For ASSIGN_CST */
+AssignArg::AssignArg(AssignType t, cst_t c, bool offset, string cmt):type(t), addr_reg(-1), reg(-1), cst(c), cst_has_offset(offset), comment(cmt){} /* For ASSIGN_CST */
 AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), addr_reg(-1), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
 AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), addr_op(o), reg(-1), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
 AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_reg(-1), addr_cst(ac), reg(-1), cst(c){} /* For ASSIGN_CSTMEM_BINOP_CST */
@@ -327,10 +327,6 @@ SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int l
     else
         throw_exception("Implement the global variable");
     memset(_calls_count, 0, sizeof(_calls_count));
-    for( int i = 0; i < NB_STRATEGY_TYPES; i++ ){
-        _comment[i] = "";
-        _initial_comment[i] = "";
-    }
     _depth = 0;
     _reg_transitivity_unusable = new vector<int>();
 }
@@ -408,38 +404,13 @@ FailRecord* SearchEnvironment::fail_record(){
     return &_fail_record;
 }
 
-/* Comments about gadgets */ 
-bool SearchEnvironment::has_comment(SearchStrategyType t){
-    return ! _comment[t].empty();
-}
-void SearchEnvironment::push_comment(SearchStrategyType t, string comment){
-    _comment[t] = comment;
-}
-string SearchEnvironment::pop_comment(SearchStrategyType t){
-    string res = _comment[t];
-    _comment[t] = "";
-    return res;
-}
-bool SearchEnvironment::has_initial_comment(SearchStrategyType t){
-    return ! _initial_comment[t].empty();
-}
-void SearchEnvironment::set_initial_comment(SearchStrategyType t, string comment){
-    _initial_comment[t] = comment;
-}
-string SearchEnvironment::pop_initial_comment(SearchStrategyType t){
-    string res = _initial_comment[t];
-    _initial_comment[t] = "";
-    return res;
-}
-
 /* *********************************************************************
  *                         Search Parameters Bindings
  * ******************************************************************* */
 SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s, bool np, bool sg, 
-      addr_t lower_addr, addr_t higher_addr, std::string ic, bool chnbl  ):
+      addr_t lower_addr, addr_t higher_addr, bool chnbl ):
     keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg), chainable(chnbl),
-    lower_valid_write_addr(lower_addr), higher_valid_write_addr(higher_addr),
-    initial_pop_constant_comment(ic){}
+    lower_valid_write_addr(lower_addr), higher_valid_write_addr(higher_addr){}
 
 SearchResultsBinding::SearchResultsBinding(){
     found = false;
@@ -526,9 +497,6 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, params.no_padding, params.single_gadget,
                                 &g_reg_transitivity_record);
-    
-    if( !params.initial_pop_constant_comment.empty())
-        env->set_initial_comment(STRATEGY_POP_CONSTANT, params.initial_pop_constant_comment);
     
     /* Search */ 
     chain = search(dest, assign, env, params.shortest);
@@ -1076,7 +1044,7 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     ROPChain *res = nullptr, *pop=nullptr;
     cst_t offset;
     bool prev_no_padding = env->no_padding();
-    bool success, had_comment; 
+    bool success;
     addr_t padding=0;
     SearchStrategyType strategy = STRATEGY_POP_CONSTANT;
     string comment;
@@ -1101,14 +1069,9 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     /* Setting env */ 
     env->add_call(strategy);
     env->set_no_padding(true);
-    /* Check for comments */
-    /* First look if we have an initial one */ 
-    if( env->has_initial_comment(strategy) && env->depth() == 1){
-        env->push_comment(strategy, env->pop_initial_comment(strategy));
-    }
-    had_comment = env->has_comment(strategy);
-    if( had_comment ){
-        comment = env->pop_comment(strategy);
+    /* Check for arg comment */
+    if( assign.comment != "" ){
+        comment = assign.comment;
     }else{
         snprintf(val_str, sizeof(val_str), "0x%lx", (addr_t)assign.cst);
         comment = "Constant: " + str_bold(string(val_str));
@@ -1154,10 +1117,6 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     delete tmp_constraint;
     env->set_constraint(prev_constraint);
 
-    /* Restore comment */
-    if( had_comment ){
-        env->push_comment(strategy, comment);
-    }
     /* Merge fail record with global */ 
     if( res == nullptr ){
 		env->fail_record()->merge_with(&local_fail_record);
@@ -1297,7 +1256,6 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     SearchStrategyType strategy = STRATEGY_ADJUST_RET;
     ROPChain *res=nullptr, *set_ret_reg_chain=nullptr; 
     Constraint* prev_constraint = env->constraint(), *tmp_constraint=nullptr;
-    //AdjustRetRecord prev_adjust_ret = *(env->adjust_ret_record());
     vector<int> possible_gadgets, adjust_gadgets;
     vector<int>::iterator it, it2;
     vector<addr_t>::iterator ait;
@@ -1428,16 +1386,12 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
                     tmp_constraint->add(new ConstrKeepRegs(assign.addr_reg), true);
                     env->set_constraint(tmp_constraint);
                 }
-                
                 /* Adapt lmax */
                 env->set_lmax(prev_lmax - padding_len - 1);
-                /* Set comment */ 
-                env->push_comment(STRATEGY_POP_CONSTANT, string("Address of ") + str_bold(gadget_db()->get(*it2)->asm_str()));
                 /* Search */ 
-                set_ret_reg_chain = search(DestArg(DST_REG, ret_reg), AssignArg(ASSIGN_CST, *ait, true), env);
+                set_ret_reg_chain = search(DestArg(DST_REG, ret_reg), AssignArg(ASSIGN_CST, *ait, true, string("Address of ") + str_bold(gadget_db()->get(*it2)->asm_str())), env);
                 /* Restore env */ 
                 env->set_lmax(prev_lmax);
-                env->pop_comment(STRATEGY_POP_CONSTANT);
                 if( tmp_constraint != nullptr ){
                     delete tmp_constraint;
                     tmp_constraint = nullptr;

@@ -264,11 +264,11 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         
     py::class_<DestArg>(m, "DestArg")
         .def(py::init<DestType, int, Binop, cst_t>())
-        .def(py::init<DestType, cst_t, bool>(), py::arg("type"), py::arg("val"), py::arg("offset")=false)
+        .def(py::init<DestType, cst_t, bool, string>(), py::arg("type"), py::arg("val"), py::arg("offset")=false, py::arg("comment")="")
         .def(py::init<>());
         
     py::class_<AssignArg>(m, "AssignArg")
-        .def(py::init<AssignType, cst_t, bool>(), py::arg("type"), py::arg("cst"), py::arg("offset")=false)
+        .def(py::init<AssignType, cst_t, bool, string>(), py::arg("type"), py::arg("cst"), py::arg("offset")=false, py::arg("comment")="")
         .def(py::init<AssignType, int, Binop, cst_t>())
         .def(py::init<AssignType, int, Binop, cst_t, cst_t>())
         .def(py::init<AssignType, cst_t, cst_t>())
@@ -284,11 +284,10 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def("bad_byte_index", &FailRecord::bad_byte_index);
     
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
-        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool, addr_t, addr_t, string, bool>(), 
+        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool, addr_t, addr_t, bool>(), 
                             py::arg("keep_regs"),py::arg("bad_bytes"), py::arg("lmax"),py::arg("shortest")=false, 
                             py::arg("no_padding")=false,py::arg("single_gadget")=false, py::arg("lower_valid_write_addr")=0, 
-                            py::arg("higher_valid_write_addr")=0, py::arg("initial_pop_constant_comment")="",
-                            py::arg("chainable")=true
+                            py::arg("higher_valid_write_addr")=0, py::arg("chainable")=true
                             )
         .def_readwrite("keep_regs", &SearchParametersBinding::keep_regs)
         .def_readwrite("bad_bytes", &SearchParametersBinding::bad_bytes)
@@ -298,8 +297,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def_readwrite("single_gadget", &SearchParametersBinding::single_gadget)
         .def_readwrite("chainable", &SearchParametersBinding::chainable)
         .def_readwrite("lower_valid_write_addr", &SearchParametersBinding::lower_valid_write_addr)
-        .def_readwrite("higher_valid_write_addr", &SearchParametersBinding::higher_valid_write_addr)
-        .def_readwrite("initial_pop_constant_comment", &SearchParametersBinding::initial_pop_constant_comment);
+        .def_readwrite("higher_valid_write_addr", &SearchParametersBinding::higher_valid_write_addr);
         
     py::class_<SearchResultsBinding>(m, "SearchResultsBinding")
         .def_readonly("chain", &SearchResultsBinding::chain)

@@ -496,8 +496,6 @@ Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
         if( ! instr_table[instr_count++] ){
             continue;
         }
-        // DEBUG
-        //it->print(cout);
         // Else, execute
         try{
             // Skip instructions setting ignored registers 

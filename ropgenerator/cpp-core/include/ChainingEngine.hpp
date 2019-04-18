@@ -35,11 +35,12 @@ class DestArg {
     Binop addr_op;
     int reg; 
     bool addr_cst_has_offset; // If the dest is a cst_mem, indicate if needs to be adjusted with offset (for add_padding() method )
-    
+    string comment; 
+        
     DestArg();
     //DestArg(DestType t, cst_t r);   /* For DEST_REG */ 
     DestArg(DestType t, int addr_r, Binop op, cst_t addr_c); /* For DEST_MEM */
-    DestArg(DestType t, cst_t val, bool offset=false); /* For DEST_CSTMEM */
+    DestArg(DestType t, cst_t val, bool offset=false, string cmt=""); /* For DEST_CSTMEM */
     bool operator==(DestArg& other);
 };
 
@@ -54,9 +55,10 @@ class AssignArg {
     cst_t cst;
     bool cst_has_offset; // If the arg is a constant, indicate if it has been modified with 
                  // an offset (for add_padding, to pretty print with offset)
+    string comment;
     
     AssignArg();
-    AssignArg(AssignType t, cst_t c, bool offset=false); /* For ASSIGN_CST */
+    AssignArg(AssignType t, cst_t c, bool offset=false, string cmt=""); /* For ASSIGN_CST */
     AssignArg(AssignType t, int r, Binop o, cst_t c); /* For ASSIGN_REG_BINOP_CST */
     AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c); /* For ASSIGN_MEM_BINOP_CST */
     AssignArg(AssignType t, cst_t ac, cst_t c); /* For ASSIGN_CSTMEM_BINOP_CST */
@@ -144,9 +146,8 @@ class SearchParametersBinding{
     bool single_gadget;
     bool chainable;
     addr_t lower_valid_write_addr;
-    addr_t higher_valid_write_addr; // invalid values are 0 
-    std::string initial_pop_constant_comment; 
-    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s , bool np, bool sg , addr_t la, addr_t ha, string ic, bool chnbl);
+    addr_t higher_valid_write_addr; // invalid values are 0
+    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s , bool np, bool sg , addr_t la, addr_t ha, bool chnbl);
 };
 
 class SearchResultsBinding{
@@ -181,9 +182,6 @@ class SearchEnvironment{
     /* ROPChain options */ 
     bool _no_padding;
     bool _single_gadget;
-    /* Comments about gadgets */ 
-    string _comment[NB_STRATEGY_TYPES];
-    string _initial_comment[NB_STRATEGY_TYPES]; // This is only for pretty printing when using high level strategies from python
     /* Records for optimisations and infos */ 
     RegTransitivityRecord* _reg_transitivity_record; // Use a pointer in case we use a global record
     AdjustRetRecord _adjust_ret_record;
@@ -225,15 +223,7 @@ class SearchEnvironment{
         void set_reg_transitivity_unusable(vector<int>* vec);
         bool is_reg_transitivity_unusable(int reg);
         
-        /* Comments about gadgets */ 
-        bool has_comment(SearchStrategyType t);
-        void push_comment(SearchStrategyType t, string comment);
-        string pop_comment(SearchStrategyType t);
-        bool has_initial_comment(SearchStrategyType t);
-        void set_initial_comment(SearchStrategyType t, string comment);
-        string pop_initial_comment(SearchStrategyType t);
-        
-        /* Record functions */ 
+        /* Record functions */
         RegTransitivityRecord* reg_transitivity_record();
         AdjustRetRecord* adjust_ret_record();
         void set_adjust_ret_record(AdjustRetRecord* rec);
