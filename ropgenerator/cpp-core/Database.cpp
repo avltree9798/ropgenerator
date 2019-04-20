@@ -45,7 +45,7 @@ vector<int> SimpleGadgetList::find(Constraint* constr, Assertion *assert, int n,
                 - semantic pre_conditions
                 - memory accesses pre-conditions
             */
-            all_conds = constr_cond && _pre_conds.at(i) && g->mem_pre_cond();
+            all_conds = constr_cond && _pre_conds.at(i) && g->all_pre_cond();
             if( assert->validate(all_conds) ){
                 res.push_back(_gadgets.at(i));
             }
@@ -81,7 +81,7 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
                 - semantic pre_conditions
                 - memory accesses pre-conditions
             */
-            all_conds = constr_cond && _pre_conds[val].at(i) && g->mem_pre_cond();
+            all_conds = constr_cond && _pre_conds[val].at(i) && g->all_pre_cond();
             if( assert->validate(all_conds) ){
                 res.push_back(_values[val].at(i));
             }

@@ -196,8 +196,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .export_values();
     
     py::class_<Gadget, shared_ptr<Gadget>>(m, "Gadget")
-        .def(py::init<GadgetType>())
-        .def(py::init<shared_ptr<IRBlock>>())
+        .def(py::init<GadgetType, bool>(), py::arg("type"), py::arg("thumb")=false)
+        .def(py::init<shared_ptr<IRBlock>, bool>(), py::arg("irblock"), py::arg("thumb")=false)
         .def("set_asm_str", &Gadget::set_asm_str)
         .def("set_hex_str", &Gadget::set_hex_str)
         .def("set_ret_type", &Gadget::set_ret_type)

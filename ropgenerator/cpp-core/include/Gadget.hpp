@@ -31,13 +31,15 @@ class Gadget{
     /* Return */  
     RetType _ret_type;
     int _ret_reg; 
-    CondObjectPtr _ret_pre_cond; 
+    CondObjectPtr _ret_pre_cond;
+    /* Thumb mode */
+    CondObjectPtr _other_pre_cond; 
     
     
     public:
         // Constructor
-        Gadget(GadgetType special_type);
-        Gadget(shared_ptr<IRBlock> irblock); 
+        Gadget(GadgetType special_type, bool thumb=false);
+        Gadget(shared_ptr<IRBlock> irblock, bool thumb=false); 
         // Accessors 
         int id(); 
         GadgetType type(); 
@@ -56,6 +58,8 @@ class Gadget{
         int ret_reg();
         CondObjectPtr ret_pre_cond();
         CondObjectPtr mem_pre_cond();
+        CondObjectPtr other_pre_cond();
+        CondObjectPtr all_pre_cond();
         Semantics * semantics(); 
         // Modifiers
         void add_address(addr_t addr); 

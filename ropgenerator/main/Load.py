@@ -356,7 +356,7 @@ def load(args):
             
             # Check for SVC 
             if( raw == b'\x00\xdf' and curr_arch_type() in [ArchType.ARCH_ARM32]):
-                gadget = Gadget(GadgetType.SVC)
+                gadget = Gadget(GadgetType.SVC, thumb=True)
                 gadget.set_hex_str("\\x00\\xdf")
                 gadget.set_asm_str("svc #0")
                 dup[raw] = gadget_db_add(gadget)
@@ -369,7 +369,7 @@ def load(args):
             (irblock, asm_instr_list) = raw_to_IRBlock(raw, thumb=True)
             if( not irblock is None ):
                 # Create C++ object 
-                gadget = Gadget(irblock)
+                gadget = Gadget(irblock, thumb=True)
                 # Set different strings 
                 asm_str = '; '.join(str(i) for i in asm_instr_list)
                 gadget.set_asm_str(asm_str)

@@ -86,7 +86,7 @@ CondObjectPtr generate_mem_pre_cond(vector<ExprObjectPtr>& read_list, vector<Exp
 
 
 // Special gadget
-Gadget::Gadget(GadgetType special_type){
+Gadget::Gadget(GadgetType special_type, bool thumb){
     /* DEBUG FOR LATER: 
      * Maybe keep only specials that have the form <special_instr> + <normal gadget>
      * Then we build a gadget from <normal gadget>, and change the appropriate fields afterwards
@@ -117,10 +117,16 @@ Gadget::Gadget(GadgetType special_type){
     _ret_type = RET_UNKNOWN; 
     _ret_reg = -1; 
     _ret_pre_cond = nullptr;
+    
+    // Other pre-conditions
+    if( thumb )
+        _other_pre_cond = NewCondCPUMode(COND_THUMB_MODE);
+    else
+        _other_pre_cond = NewCondTrue();
 }
 
 // Constructor
-Gadget::Gadget(shared_ptr<IRBlock> irblock){
+Gadget::Gadget(shared_ptr<IRBlock> irblock, bool thumb){
     vector<reg_pair>::iterator reg_it;
     vector<SPair>::iterator spair_it;
     vector<SPair>* p;
@@ -195,11 +201,17 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
             }
         }
     }
-    // Test for call in python part 
+    // Test for call is done in the python part 
     if( _ret_type == RET_UNKNOWN ){
         _ret_reg = -1; 
         _ret_pre_cond = NewCondFalse(); 
     }
+    
+        // Other pre-conditions
+    if( thumb )
+        _other_pre_cond = NewCondCPUMode(COND_THUMB_MODE);
+    else
+        _other_pre_cond = NewCondTrue();
     
 }
 
@@ -230,6 +242,8 @@ RetType Gadget::ret_type(){return _ret_type;}
 int Gadget::ret_reg(){return _ret_reg;}
 CondObjectPtr Gadget::ret_pre_cond(){return _ret_pre_cond;}
 CondObjectPtr Gadget::mem_pre_cond(){return _mem_pre_cond;}
+CondObjectPtr Gadget::other_pre_cond(){return _other_pre_cond;}
+CondObjectPtr Gadget::all_pre_cond(){return _ret_pre_cond && _mem_pre_cond && _other_pre_cond;}
 Semantics* Gadget::semantics(){return _semantics;}
 // Modifiers
 void Gadget::add_address(addr_t addr){
