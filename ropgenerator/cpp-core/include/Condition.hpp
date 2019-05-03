@@ -47,7 +47,7 @@ using CondObjectPtr = shared_ptr<CondObject>;
 // Types of conditions
 enum CondType{COND_TRUE, COND_FALSE, COND_EQ, COND_NEQ, COND_LT, COND_LE, 
               COND_AND, COND_OR, COND_NOT, COND_VALID_READ, COND_VALID_WRITE, 
-              COND_THUMB_MODE, COND_UNKNOWN};
+              COND_THUMB_MODE, COND_ARM_CPU, COND_UNKNOWN};
 
 // Useful functions
 CondType invert_cond_type(CondType c);
@@ -185,6 +185,12 @@ class CondCPUMode: public Cond{
         void print(ostream& os);
 };
 
+class CondCPU: public Cond{
+    public:
+        CondCPU(CondType t);
+        void print(ostream& os);
+};
+
 class CondUnknown: public Cond{
     public:
         CondUnknown();
@@ -215,6 +221,7 @@ CondObjectPtr NewCondCompare(CondType t, ExprObjectPtr l, ExprObjectPtr r);
 CondObjectPtr NewCondBinLogic(CondType t, CondObjectPtr l, CondObjectPtr r);
 CondObjectPtr NewCondUnLogic(CondType t, CondObjectPtr a);
 CondObjectPtr NewCondCPUMode(CondType t);
+CondObjectPtr NewCondCPU(CondType t);
 CondObjectPtr NewCondUnknown();
 // Create new ExprPtr for COND_UNKNOWN, ONLY INTERNAL USAGE
 CondPtr special_NewCondPtrUnknown(); 

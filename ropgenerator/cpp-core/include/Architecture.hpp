@@ -32,7 +32,7 @@ enum RegARM32 : int {ARM32_R0, ARM32_R1, ARM32_R2, ARM32_R3, ARM32_R4, ARM32_R5,
                     ARM32_R8, ARM32_R9, ARM32_R10, ARM32_R11, ARM32_R12, ARM32_R13, ARM32_R14, ARM32_R15, 
                     ARM32_APSR, ARM32_NB_REGS};
 
-enum ArchType {ARCH_X86, ARCH_X64, ARCH_ARM32};
+enum ArchType {ARCH_X86, ARCH_X64, ARCH_ARM32, ARCH_ARM64};
 
 class Architecture{
     ArchType _type; 
@@ -61,7 +61,10 @@ class Architecture{
         bool is_ignored_reg( int num );
         string reg_name(int num);
         int reg_num(string reg_name);
+        bool is_intel();
+        bool is_arm();
 };
+
 
 // Module wide functions to set global variables 
 bool set_arch(ArchType a);

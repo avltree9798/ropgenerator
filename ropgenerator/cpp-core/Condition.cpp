@@ -51,7 +51,7 @@ bool is_const_cond(CondType c){
 // Cond class
 // Has to match the enum in Condition.hpp 
 const char *condtype_to_str[] = {"true", "false", "==", "!=", "<", "<=", 
-              "&&", "||", "!", "valid_read", "valid_write", "thumb_mode"}; 
+              "&&", "||", "!", "valid_read", "valid_write", "thumb_mode", "arm_cpu"}; 
 Cond::Cond(CondType t): _type(t){}
 CondType Cond::type(){return _type;}
 CondEval Cond::eval(){
@@ -147,6 +147,13 @@ void CondPointer::print(ostream& os){
 //CondCPUMode
 CondCPUMode::CondCPUMode(CondType t):Cond(t){}
 void CondCPUMode::print(ostream& os){
+    os << condtype_to_str[_type];
+}
+
+////////////////////////////////////////////////////////////////////////
+//CondCPU
+CondCPU::CondCPU(CondType t):Cond(t){}
+void CondCPU::print(ostream& os){
     os << condtype_to_str[_type];
 }
 

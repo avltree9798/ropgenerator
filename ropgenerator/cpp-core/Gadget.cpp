@@ -84,6 +84,47 @@ CondObjectPtr generate_mem_pre_cond(vector<ExprObjectPtr>& read_list, vector<Exp
     return res;
 }
 
+void get_return_type(Semantics * semantics, cst_t sp_inc, RetType& ret_type, int& ret_reg, CondObjectPtr& ret_pre_cond){
+    vector<reg_pair>::iterator reg_it;
+    vector<SPair>::iterator spair_it;
+    vector<SPair>* p;
+    vector<ExprObjectPtr>::iterator eit;
+    int ret;
+    bool is_inc;
+    cst_t inc;
+    // Test for ret/jmp 
+    ret_type = RET_UNKNOWN; 
+    if( (p = semantics->get_reg(curr_arch()->ip())) != nullptr){
+        for( spair_it = p->begin(); spair_it != p->end(); spair_it++){
+            // Is it jmp ? 
+            std::tie(is_inc, ret, inc) = spair_it->expr_ptr()->is_reg_increment();
+            if( is_inc ){
+                ret_reg = ret;
+                ret_type = RET_JMP;
+                ret_pre_cond = spair_it->cond();
+                // We don't break here because if we have a ret we keep the ret 
+                // (when both ret and jmp, it's a gadget like mov [mem],reg; ret,
+                // with a condition mem==rsp that makes it possibly a jmp to reg...,
+                // so we keep only the ret behaviour)
+            }else if( spair_it->expr_ptr()->type() == EXPR_MEM ){
+                std::tie(is_inc, inc) = spair_it->expr_ptr()->addr_expr_ptr()->is_reg_increment(curr_arch()->sp());
+                if( is_inc && (inc == sp_inc - curr_arch()->octets())){
+                    ret_type = RET_RET;
+                    ret_reg = -1;
+                    ret_pre_cond = spair_it->cond();
+                    break; 
+                }
+            }
+        }
+    }
+    // Test for call is done in the python part 
+    if( ret_type == RET_UNKNOWN ){
+        ret_reg = -1; 
+        ret_pre_cond = NewCondFalse(); 
+    }
+}
+
+
 
 // Special gadget
 Gadget::Gadget(GadgetType special_type, bool thumb){
@@ -127,11 +168,9 @@ Gadget::Gadget(GadgetType special_type, bool thumb){
 
 // Constructor
 Gadget::Gadget(shared_ptr<IRBlock> irblock, bool thumb){
-    vector<reg_pair>::iterator reg_it;
     vector<SPair>::iterator spair_it;
     vector<SPair>* p;
-    vector<ExprObjectPtr>::iterator eit;
-    int i, ret_reg;
+    int i;
     bool is_inc;
     cst_t inc;
     CondObjectPtr tmp;
@@ -176,38 +215,15 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock, bool thumb){
     _mem_pre_cond = generate_mem_pre_cond(_mem_read, _mem_write);
     
     // Get the return type
-    // Test for ret/jmp 
-    _ret_type = RET_UNKNOWN; 
     if( _known_sp_inc && ((p = _semantics->get_reg(curr_arch()->ip())) != nullptr)){
-        for( spair_it = p->begin(); spair_it != p->end(); spair_it++){
-            // Is it jmp ? 
-            std::tie(is_inc, ret_reg, inc) = spair_it->expr_ptr()->is_reg_increment();
-            if( is_inc ){
-                _ret_reg = ret_reg;  
-                _ret_type = RET_JMP;
-                _ret_pre_cond = spair_it->cond();  
-                // We don't break here because if we have a ret we keep the ret 
-                // (when both ret and jmp, it's a gadget like mov [mem],reg; ret,
-                // with a condition mem==rsp that makes it possibly a jmp to reg...,
-                // so we keep only the ret behaviour)
-            }else if( spair_it->expr_ptr()->type() == EXPR_MEM ){
-                std::tie(is_inc, inc) = spair_it->expr_ptr()->addr_expr_ptr()->is_reg_increment(curr_arch()->sp());
-                if( is_inc && (inc == _sp_inc - curr_arch()->octets())){
-                    _ret_type = RET_RET; 
-                    _ret_reg = -1; 
-                    _ret_pre_cond = spair_it->cond(); 
-                    break; 
-                }
-            }
-        }
-    }
-    // Test for call is done in the python part 
-    if( _ret_type == RET_UNKNOWN ){
+        get_return_type(_semantics, _sp_inc, _ret_type, _ret_reg, _ret_pre_cond);
+    }else{
+        _ret_type = RET_UNKNOWN;
         _ret_reg = -1; 
         _ret_pre_cond = NewCondFalse(); 
     }
     
-        // Other pre-conditions
+    // Other misc. pre-conditions
     if( thumb )
         _other_pre_cond = NewCondCPUMode(COND_THUMB_MODE);
     else

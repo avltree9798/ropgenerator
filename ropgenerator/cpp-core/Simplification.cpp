@@ -509,10 +509,12 @@ pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p){
         case EXPR_BINOP:
             arg1 = p->left_object_ptr()->tweak();
             arg2 = p->right_object_ptr()->tweak();
-            if( (arg1.first) != nullptr &&  (arg2.first) != nullptr )
+            if( (arg1.first) != nullptr &&  (arg2.first) != nullptr ){
+                // Test for LSB zero-ing for ARM jumps
+                if( curr_arch()->is_arm() 
                 return make_pair(NewExprBinop(p->binop(), arg1.first, arg2.first), 
                                 arg1.second && arg2.second);
-            else if( (arg1.first) != nullptr && (arg2.first) == nullptr )
+            }else if( (arg1.first) != nullptr && (arg2.first) == nullptr )
                 return make_pair(NewExprBinop(p->binop(), arg1.first, p->right_object_ptr()), 
                                 arg1.second);
             else if( (arg1.first) == nullptr && (arg2.first) != nullptr )

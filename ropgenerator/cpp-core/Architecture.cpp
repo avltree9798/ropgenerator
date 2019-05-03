@@ -26,7 +26,12 @@ bool Architecture::is_ignored_reg( int num ){
 string Architecture::reg_name(int num){
     return _reg_names.at(num);
 }
-
+bool Architecture::is_intel(){
+    return _type == ARCH_X86 || _type == ARCH_X64 ;
+}
+bool Architecture::is_arm(){
+    return _type == ARCH_ARM32 || _type == ARCH_ARM64;
+}
 // X86
 vector<string> RegX86Names = {"eax","ebx","ecx","edx","esi","edi","esp","eip","ebp",
     "zf","cf","sf","pf","af","of"};
