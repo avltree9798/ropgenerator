@@ -180,7 +180,7 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock, bool thumb){
     // Get the semantics 
     _semantics = irblock->compute_semantics(true); 
     _semantics->simplify(); 
-    _semantics->tweak(true);
+    _semantics->tweak(true, thumb);
     //_semantics->filter(); 
     
     // Set the different fields

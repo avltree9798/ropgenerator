@@ -171,10 +171,10 @@ def raw_to_IRBlock(raw, thumb=False):
     # Translate instruction by instruction
     try:
         for instr in irsb:
-            # print(instr) # DEBUG 
+            #print(instr) # DEBUG
             i = None
             if( instr.mnemonic == ReilMnemonic.NOP):
-                pass
+                i = None
             elif( is_calculation_instr(instr.mnemonic)):
                 i = IRInstruction(barf_operation_to_IR(instr.mnemonic),
                                             barf_operand_to_IR(instr.operands[0], alias_mapper),
@@ -222,7 +222,8 @@ def raw_to_IRBlock(raw, thumb=False):
                                             ArgEmpty(),
                                             ArgEmpty(),
                                             ArgReg(curr_arch_ip(), curr_arch_bits()));
-                    break
+                    res.add_instr(i)
+                    break # Stop here
             elif( instr.mnemonic == ReilMnemonic.BISZ ):
                 raise REILOperationNotSupported("REIL Operation 'BISZ' not supported")
             else:

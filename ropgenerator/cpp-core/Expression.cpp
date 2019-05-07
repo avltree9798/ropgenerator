@@ -450,6 +450,10 @@ pair<ExprObjectPtr, CondObjectPtr> ExprObject::tweak(){
     return tweak_expression(_expr_ptr);
 }
 
+pair<ExprObjectPtr, CondObjectPtr> ExprObject::tweak_return(bool thumb){
+    return tweak_return_expression(_expr_ptr, thumb);
+}
+
 void ExprObject::simplify(){
     ExprPtr saved = nullptr; 
     if( _simplified )

@@ -119,6 +119,19 @@ class RegTransitivityRecord{
         bool is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, SearchEnvironment* env);
 };
 
+/* **************************************************
+ *                AdjustStoreRecord
+ * ************************************************* */ 
+#define MAX_SIGNATURES_PER_QUERY_ADJUST_STORE 20
+class AdjustStoreRecord{
+    vector<cstr_sig_t> _regs[NB_REGS_MAX][NB_REGS_MAX]; 
+    public:
+        void add_fail(int dest_reg, int assign_reg, SearchEnvironment* env);
+        bool is_impossible(int dest_reg, int assgn_reg, SearchEnvironment* env);
+};
+
+
+
 /* *********************************************************************
  *                          Adjust Ret Record 
  * ******************************************************************* */ 
@@ -185,6 +198,7 @@ class SearchEnvironment{
     /* Records for optimisations and infos */ 
     RegTransitivityRecord* _reg_transitivity_record; // Use a pointer in case we use a global record
     AdjustRetRecord _adjust_ret_record;
+    AdjustStoreRecord * _adjust_store_record;
     FailRecord _fail_record;
     /* Strategy-specific information */ 
     vector<int>* _reg_transitivity_unusable; // Use a pointer because will be saved and restored often
@@ -194,7 +208,8 @@ class SearchEnvironment{
         /* Constructor */ 
         SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm, 
                              unsigned int max_depth, bool no_padd, bool single_gadget,
-                             RegTransitivityRecord* reg_trans_record);
+                             RegTransitivityRecord* reg_trans_record, 
+                             AdjustStoreRecord* adjust_ret_record);
         /* Destructor  */ 
         ~SearchEnvironment();
     
@@ -226,6 +241,7 @@ class SearchEnvironment{
         /* Record functions */
         RegTransitivityRecord* reg_transitivity_record();
         AdjustRetRecord* adjust_ret_record();
+        AdjustStoreRecord * adjust_store_record();
         void set_adjust_ret_record(AdjustRetRecord* rec);
         FailRecord* fail_record();
 };

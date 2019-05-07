@@ -9,6 +9,12 @@
 #include <algorithm>
 #include <csignal> 
 
+
+/* Globals */
+RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
+AdjustStoreRecord g_adjust_store_record = AdjustStoreRecord();
+FailRecord g_fail_record = FailRecord();
+
 /* *****************************************************
  *             Classes to specify queries 
  * *************************************************** */
@@ -308,6 +314,59 @@ void AdjustRetRecord::reset(){
     memset(_regs, false, sizeof(_regs));
 }
 
+/* ********************************************************************
+ *                         AdjustStoreRecord
+ * ******************************************************************* */ 
+void AdjustStoreRecord::add_fail(int dest_reg, int assign_reg, SearchEnvironment* env){
+    int cst_index;
+    vector<cstr_sig_t>::iterator it; 
+    cstr_sig_t sig; 
+    bool added=false, already=false;
+    // Check regs
+    if( dest_reg >= NB_REG_RECORD || assign_reg >= NB_REG_RECORD )
+        return;
+    // Insert in the vector...
+    sig = env->constraint()->signature(env);
+    for( it = _regs[dest_reg][assign_reg].begin(); it != _regs[dest_reg][assign_reg].end(); it++){
+        if( (*it & sig) == sig ){
+            // sig included in *it so replace *it by sig
+            *it = sig; 
+            added = true;
+        }else if( (*it & sig) == *it ){
+            // previous included in sig so we discard it
+            already = true;
+            break;
+        }
+    }
+    // If not added and not already here and enough place, add it ! 
+    if( (!already) && (!added) && _regs[dest_reg][assign_reg].size() < MAX_SIGNATURES_PER_QUERY_ADJUST_STORE){
+        _regs[dest_reg][assign_reg].push_back(sig);
+    }
+    
+}
+
+bool AdjustStoreRecord::is_impossible(int dest_reg, int assign_reg, SearchEnvironment* env){
+    int cst_index;
+    vector<cstr_sig_t>::iterator it; 
+    cstr_sig_t sig; 
+    /* Check regs, if they are not supported we don't know if they are impossible
+     * so we return false
+     * */
+    if( dest_reg >= NB_REG_RECORD || assign_reg >= NB_REG_RECORD || 
+        dest_reg < 0 || assign_reg < 0)
+        return false;
+        
+    sig = env->constraint()->signature(env);
+    for( it = _regs[dest_reg][assign_reg].begin(); it != _regs[dest_reg][assign_reg].end(); it++){
+        if( (*it & sig) == *it ){
+            // previous included in sig, so lesser constraints already failed :/
+            return true;
+        }
+    }
+    return false;
+}
+
+
 
 /* *********************************************************************
  *                         SearchEnvironment 
@@ -315,7 +374,7 @@ void AdjustRetRecord::reset(){
 
 SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm=DEFAULT_LMAX, 
                                      unsigned int max_depth=DEFAULT_MAX_DEPTH, bool no_padd=false, bool single=false,
-                                     RegTransitivityRecord* reg_trans_record=nullptr){
+                                     RegTransitivityRecord* reg_trans_record=nullptr, AdjustStoreRecord* adjust_store_record=nullptr){
     _constraint = c;
     _assertion = a;
     _lmax = lm;
@@ -325,7 +384,11 @@ SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int l
     if( reg_trans_record != nullptr )
         _reg_transitivity_record = reg_trans_record;
     else
-        throw_exception("Implement the global variable");
+        _reg_transitivity_record = &g_reg_transitivity_record;
+    if( adjust_store_record != nullptr )
+        _adjust_store_record = adjust_store_record;
+    else
+        _adjust_store_record = &g_adjust_store_record;
     memset(_calls_count, 0, sizeof(_calls_count));
     _depth = 0;
     _reg_transitivity_unusable = new vector<int>();
@@ -336,7 +399,7 @@ SearchEnvironment::~SearchEnvironment(){
 }
 
 SearchEnvironment* SearchEnvironment::copy(){
-    SearchEnvironment* res = new SearchEnvironment(_constraint, _assertion, _lmax, _max_depth, _no_padding, _reg_transitivity_record);
+    SearchEnvironment* res = new SearchEnvironment(_constraint, _assertion, _lmax, _max_depth, _no_padding, _single_gadget, _reg_transitivity_record, _adjust_store_record);
     res->_depth = _depth;
     memcpy(res->_calls_count, _calls_count, sizeof(_calls_count));
     res->_calls_history = _calls_history;
@@ -403,6 +466,10 @@ void SearchEnvironment::set_adjust_ret_record(AdjustRetRecord* rec){
 FailRecord* SearchEnvironment::fail_record(){
     return &_fail_record;
 }
+AdjustStoreRecord* SearchEnvironment::adjust_store_record(){
+    return _adjust_store_record;
+}
+
 
 /* *********************************************************************
  *                         Search Parameters Bindings
@@ -457,9 +524,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
 ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_adjust_load(DestArg dest, AssignArg assign, SearchEnvironment* env);
 
-/* Globals */
-RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
-FailRecord g_fail_record = FailRecord();
+
 
 /* Function to be used from python */
 SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBinding params){
@@ -496,7 +561,7 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     }
     
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, params.no_padding, params.single_gadget,
-                                &g_reg_transitivity_record);
+                                &g_reg_transitivity_record, &g_adjust_store_record);
     
     /* Search */ 
     chain = search(dest, assign, env, params.shortest);
@@ -2007,5 +2072,7 @@ ROPChain* chain_adjust_load(DestArg dest, AssignArg assign, SearchEnvironment* e
 /* Init functions */
 void init_chaining_engine(){
     g_reg_transitivity_record = RegTransitivityRecord();
+    g_adjust_store_record = AdjustStoreRecord();
+    g_fail_record = FailRecord();
     g_search_verbose = false;
 }

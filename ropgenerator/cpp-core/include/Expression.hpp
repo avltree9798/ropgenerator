@@ -164,6 +164,7 @@ class ExprObject{
         void simplify();
         bool filter();
         pair<ExprObjectPtr, CondObjectPtr> tweak();
+        pair<ExprObjectPtr, CondObjectPtr> tweak_return(bool thumb=false); // For ip
         bool equal(ExprObjectPtr other);
         ExprObjectPtr convert(int size);
 };

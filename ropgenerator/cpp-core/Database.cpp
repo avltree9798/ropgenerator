@@ -321,6 +321,7 @@ template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::g
             delete tmp_assertion;
         }
     }
+    // Return result 
     return res;
 }
 

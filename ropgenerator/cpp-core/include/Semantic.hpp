@@ -39,7 +39,7 @@ class Semantics{
         // Simplification functions
         void simplify();
         // Extend partial registers to full registers 
-        void tweak(bool simplify);
+        void tweak(bool simplify, bool thumb);
         // Filter expressions/conditions 
         void filter();
 };

@@ -510,8 +510,6 @@ pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p){
             arg1 = p->left_object_ptr()->tweak();
             arg2 = p->right_object_ptr()->tweak();
             if( (arg1.first) != nullptr &&  (arg2.first) != nullptr ){
-                // Test for LSB zero-ing for ARM jumps
-                if( curr_arch()->is_arm() 
                 return make_pair(NewExprBinop(p->binop(), arg1.first, arg2.first), 
                                 arg1.second && arg2.second);
             }else if( (arg1.first) != nullptr && (arg2.first) == nullptr )
@@ -617,7 +615,40 @@ pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p){
     //return make_pair(make_shared<ExprObject>(nullptr), make_shared<CondObject>(nullptr));
     return make_pair(nullptr, nullptr);
 }
-
+               
+ 
+pair<ExprObjectPtr, CondObjectPtr> tweak_return_expression(ExprPtr p, bool thumb=false){
+    pair<ExprObjectPtr, CondObjectPtr> arg1, arg2; 
+    ExprObjectPtr expr1, expr2;
+    CondObjectPtr cond1, cond2; 
+    cst_t lower_arm_mask = 0;
+    cst_t higher_arm_mask = 0;
+    if( thumb )
+        lower_arm_mask = 0xfffffffffffffffe;
+    else
+        lower_arm_mask = 0xfffffffffffffffc;
+    higher_arm_mask = 0xffffffffffffffff;
+    if( curr_arch()->bits() == 32 ){
+        lower_arm_mask &= 0xffffffff;
+        higher_arm_mask &= 0xffffffff;
+    }
+    switch(p->type()){
+        case EXPR_BINOP:
+            // In arm, LSB of return values are ignored
+            if( curr_arch()->is_arm() &&
+                    p->binop() == OP_AND &&
+                    p->right_expr_ptr()->type() == EXPR_CST){
+                if( p->right_expr_ptr()->value() >= lower_arm_mask && 
+                        p->right_expr_ptr()->value() <= higher_arm_mask ){
+                    return make_pair(p->left_object_ptr(), NewCondTrue());
+                }
+            }
+            break;
+        default:
+            break;
+    }
+    return make_pair(nullptr, nullptr);
+}
 
 /*----------------------------------------------------------------
  *                  Conditions tweaking

@@ -799,6 +799,8 @@ void Assertion::remove(SubAssertionType t){
 }
 
 bool Assertion::validate(CondObjectPtr c){
+    
+    cout << "DEBUG ASSERTING : " << c->cond_ptr() << endl;
     switch(c->cond_ptr()->type()){
         case COND_TRUE:
             return true; 

@@ -52,6 +52,7 @@ CondPtr simplify_redundancy(CondPtr p);
  *              Tweaking Expressions & Conditions
  *---------------------------------------------------------------*/ 
 pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p);
+pair<ExprObjectPtr, CondObjectPtr> tweak_return_expression(ExprPtr p, bool thumb);
 pair<CondObjectPtr,CondObjectPtr> tweak_condition(CondPtr p);
 
 /*---------------------------------------------------------------

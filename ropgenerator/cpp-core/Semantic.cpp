@@ -110,12 +110,13 @@ void Semantics::simplify(){
 }
 
 // Tweaking 
-void Semantics::tweak(bool simplify=true){
+void Semantics::tweak(bool simplify=true, bool thumb=false){
     vector<reg_pair>::iterator it;
     vector<mem_pair>::iterator mit;
     vector<SPair>::iterator pit; 
     pair<ExprObjectPtr,CondObjectPtr> epair;
     pair<CondObjectPtr,CondObjectPtr> cpair;
+    CondObjectPtr new_cond;
     CondObjectPtr tmp;
     vector<SPair> add, last;
     bool found_new;
@@ -130,11 +131,24 @@ void Semantics::tweak(bool simplify=true){
                 epair = (*pit).expr()->tweak();
                 if( epair.first != nullptr ){
                     found_new = true;
+                    new_cond = (epair.second && pit->cond());
                     if( simplify ){
                         epair.first->simplify();
-                        epair.second->simplify();
+                        new_cond->simplify();
                     }
-                    add.push_back(SPair(epair.first, epair.second && pit->cond()));
+                    add.push_back(SPair(epair.first, new_cond));
+                }else if(it->first == curr_arch()->ip()){
+                    // If instruction pointer, try specific tweaks
+                    epair = (*pit).expr()->tweak_return(thumb);
+                    if( epair.first != nullptr ){
+                        found_new = true;
+                        new_cond = (epair.second && pit->cond());
+                        if( simplify ){
+                            epair.first->simplify();
+                            new_cond->simplify();
+                        }
+                        add.push_back(SPair(epair.first, new_cond));
+                    }
                 }
             }
             it->second->insert(it->second->end(), add.begin(), add.end());
